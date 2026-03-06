@@ -1,0 +1,34 @@
+name: Crypto Data Pipeline to BigQuery
+
+on:
+  # Permite que você rode o script clicando em um botão no GitHub (ótimo para testar)
+  workflow_dispatch: 
+  # Roda automaticamente todo dia às 08:00 UTC (05:00 no Brasil)
+  schedule:
+    - cron: '0 8 * * *'
+
+jobs:
+  run-data-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout do código
+      uses: actions/checkout@v3
+
+    - name: Configurar o Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Instalar dependências
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Autenticar no Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
+    - name: Executar o Pipeline ETL
+      run: python main.py
