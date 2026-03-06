@@ -1,8 +1,9 @@
--- Criação da Camada Trusted (View para o Dataviz)
+-- Criação da Camada Trusted (View Semântica para o Dataviz)
 CREATE OR REPLACE VIEW `case-de-specialist-gb.crypto_market_data.vw_trusted_crypto_metrics` AS
 SELECT 
-    DATE(f.extracted_at) AS data_referencia,
-    f.extracted_at AS data_hora_extracao,
+    DATE(f.data_cotacao) AS data_referencia,
+    f.data_cotacao AS data_hora_cotacao,
+    f.data_extracao AS data_hora_extracao,
     d.name AS nome_moeda,
     d.symbol AS simbolo,
     f.priceUsd AS preco_usd,
