@@ -49,31 +49,29 @@ class CryptoAPI:
 class CryptoTransformer:
     @staticmethod
     def process_data(raw_data):
-        """Recebe o JSON da CoinGecko e divide na modelagem Dimensão e Fato"""
         logging.info("Iniciando a transformação e separação dos dados (Dimensão e Fato)...")
         df_raw = pd.DataFrame(raw_data)
         
-        extracted_at = datetime.utcnow()
+        data_extracao = datetime.utcnow()
         
-        # 1. Tabela Dimensão (Dados cadastrais)
         df_dim = df_raw[['id', 'symbol', 'name']].copy()
-        # CoinGecko não manda o link do explorer na rota principal, então montamos a URL oficial deles:
         df_dim['explorer'] = "https://www.coingecko.com/en/coins/" + df_raw['id']
         
-        # 2. Tabela Fato (Métricas financeiras)
-        # Selecionamos os campos da CoinGecko e renomeamos para o nosso padrão original
-        df_fato = df_raw[['id', 'current_price', 'market_cap', 'total_volume', 'price_change_percentage_24h']].copy()
+        # Pegamos o last_updated da API
+        df_fato = df_raw[['id', 'current_price', 'market_cap', 'total_volume', 'price_change_percentage_24h', 'last_updated']].copy()
         df_fato.rename(columns={
             'id': 'id_criptomoeda',
             'current_price': 'priceUsd',
             'market_cap': 'marketCapUsd',
             'total_volume': 'volumeUsd24Hr',
-            'price_change_percentage_24h': 'changePercent24Hr'
+            'price_change_percentage_24h': 'changePercent24Hr',
+            'last_updated': 'data_cotacao' # Nomeamos para o nosso padrão
         }, inplace=True)
         
-        df_fato['extracted_at'] = extracted_at
+        # Convertendo as datas
+        df_fato['data_cotacao'] = pd.to_datetime(df_fato['data_cotacao'])
+        df_fato['data_extracao'] = data_extracao
         
-        # Garante que as métricas são numéricas (floats)
         numeric_cols = ['priceUsd', 'marketCapUsd', 'volumeUsd24Hr', 'changePercent24Hr']
         for col in numeric_cols:
             df_fato[col] = pd.to_numeric(df_fato[col], errors='coerce')
