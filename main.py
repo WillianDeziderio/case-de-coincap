@@ -109,7 +109,7 @@ def main():
     
     try:
         # 1. Extração
-        api = CoinCapAPI()
+        api = CryptoAPI()
         raw_data = api.fetch_data(limit=100)
         
         # 2. Transformação
