@@ -10,6 +10,6 @@ SELECT
     f.volumeUsd24Hr AS volume_24h_usd,
     f.changePercent24Hr AS variacao_24h_pct,
     d.explorer AS link_blockchain
-FROM `case-de-specialist-gb.crypto_market_data.fato_cotacao_cripto` f
-LEFT JOIN `case-de-specialist-gb.crypto_market_data.dim_criptomoeda` d
+FROM `case-de-specialist-gb.raw_crypto_market_data.fato_cotacao_cripto` f
+LEFT JOIN `case-de-specialist-gb.raw_crypto_market_data.dim_criptomoeda` d
     ON f.id_criptomoeda = d.id;
