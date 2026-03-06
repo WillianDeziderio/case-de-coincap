@@ -1,0 +1,31 @@
+# Desafio Técnico: Produtos de Dados para Tecnologia (Grupo Boticário)
+
+Este repositório contém a resolução do **Caso 2: Extração de Dados via API**, focado na construção de um pipeline de dados resiliente e escalável em Python, com ingestão automatizada no Google BigQuery.
+
+## 🏛️ Arquitetura Proposta
+
+O pipeline foi desenhado utilizando conceitos de **Engenharia de Software (POO)** e **Arquitetura ** (Raw/Trusted) dentro do GCP:
+
+1. **Extração e Resiliência:** Script Python consumindo a API da CoinGecko (substituindo a CoinCap para contornar bloqueios de DNS em esteiras de CI/CD). Implementado mecanismo de *retry* e *backoff* para lidar com HTTP 429 (Rate Limit).
+2. **Transformação (Modelagem Dimensional):** Os dados aninhados foram separados em memória utilizando `pandas` em duas estruturas:
+   * `dim_criptomoeda` (SCD Type 1 - Dados Cadastrais)
+   * `fato_cotacao_cripto` (Append Only - Métricas Financeiras e Histórico)
+3. **Carga (Load):** Ingestão direta no BigQuery via `google-cloud-bigquery`.
+4. **Camada Semântica (Trusted):** Criação de uma View no BigQuery (`vw_trusted_crypto_metrics`) unindo Fato e Dimensão, traduzindo regras de negócio e otimizando a leitura para ferramentas de Dataviz.
+5. **Orquestração (CI/CD):** Pipeline 100% serverless utilizando **GitHub Actions**, agendado para rodar diariamente via Cron Job.
+
+*(Nota: Em um ambiente produtivo corporativo, este script seria conteinerizado em Docker e orquestrado via Apache Airflow/Cloud Composer, garantindo monitoramento avançado e SLAs).*
+
+## ⚙️ Como executar localmente
+
+### Pré-requisitos
+* Python 3.10+
+* Conta no Google Cloud com um projeto e dataset no BigQuery criados.
+* Uma Service Account com a role `BigQuery Data Editor` e `BigQuery Job User`.
+
+### Passo a Passo
+
+1. **Clone o repositório:**
+   ```bash
+   git clone [https://github.com/SEU-USUARIO/case-de-coincap.git](https://github.com/SEU-USUARIO/case-de-coincap.git)
+   cd case-de-coincap
