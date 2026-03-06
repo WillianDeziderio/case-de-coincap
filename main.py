@@ -87,7 +87,7 @@ def main():
     # CONFIGURAÇÕES (Altere para o seu projeto)
     # ==========================================
     GCP_PROJECT_ID = 'case-de-specialist-gb'
-    BQ_DATASET_ID = 'crypto_market_data'
+    BQ_DATASET_ID = 'raw_crypto_market_data'
     
     try:
         # 1. Extração
