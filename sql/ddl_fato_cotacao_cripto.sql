@@ -1,5 +1,5 @@
 -- DDL para a Tabela Fato (Métricas e Cotações)
-CREATE TABLE IF NOT EXISTS `case-de-specialist-gb.crypto_market_data.fato_cotacao_cripto` (
+CREATE TABLE IF NOT EXISTS `case-de-specialist-gb.raw_crypto_market_data.fato_cotacao_cripto` (
     id_criptomoeda STRING OPTIONS(description="Chave estrangeira ligando à dim_criptomoeda"),
     priceUsd FLOAT64 OPTIONS(description="Preço atual em Dólares (USD)"),
     marketCapUsd FLOAT64 OPTIONS(description="Capitalização de mercado em USD"),
