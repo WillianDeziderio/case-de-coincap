@@ -1,10 +1,37 @@
+
+### Passo 1: O Painel no Looker Studio (Dataviz)
+
+Se você ainda não rodou aquele script SQL da **Camada Trusted** no BigQuery, vá lá na interface do BQ e rode para criar a `vw_trusted_crypto_metrics`. É ela que vamos plugar no dashboard.
+
+**Como montar o dashboard rapidinho (e com cara de profissional):**
+
+1. Acesse [lookerstudio.google.com](https://lookerstudio.google.com/).
+2. Clique em **Relatório em Branco**.
+3. Na tela de conectar dados, escolha **BigQuery**.
+4. Navegue até o seu `case-de-specialist-gb` > `crypto_market_data` (o dataset trusted) > `vw_trusted_crypto_metrics` e clique em **Adicionar**.
+
+**O que colocar no painel para impressionar a banca (3 gráficos simples e diretos):**
+
+* **Visões Gerais (Scorecards):** Coloque um cartão mostrando a quantidade de moedas rastreadas (Count de `id_criptomoeda`) e outro com a soma do `valor_mercado_usd`.
+* **Gráfico de Barras (Top 10):** Eixo X = `nome_moeda`, Eixo Y = `valor_mercado_usd`. Filtre para mostrar apenas as top 10. Isso mostra a dominância do Bitcoin e Ethereum.
+* **Tabela de Variação (Insights):** Coloque `nome_moeda`, `preco_usd` e `variacao_24h_pct`. O *pulo do gato* aqui: Vá na aba "Estilo" da tabela e coloque formatação condicional na coluna de variação (Fundo verde se for maior que 0, fundo vermelho se for menor que 0). Fica visualmente muito rico!
+
+Tire um print (ou gere um link público) desse dashboard e coloque no documento do desafio.
+
+---
+
+### Passo 2: O arquivo `README.md` (Para fechar o GitHub)
+
+A banca pediu um README com instruções claras. Esse é o seu cartão de visitas. Copie o texto abaixo, crie um arquivo chamado `README.md` na raiz do seu repositório no GitHub e faça o commit.
+
+```markdown
 # Desafio Técnico: Produtos de Dados para Tecnologia (Grupo Boticário)
 
 Este repositório contém a resolução do **Caso 2: Extração de Dados via API**, focado na construção de um pipeline de dados resiliente e escalável em Python, com ingestão automatizada no Google BigQuery.
 
 ## 🏛️ Arquitetura Proposta
 
-O pipeline foi desenhado utilizando conceitos de **Engenharia de Software (POO)** e **Arquitetura ** (Raw/Trusted) dentro do GCP:
+O pipeline foi desenhado utilizando conceitos de **Engenharia de Software (POO)** e **Arquitetura Medalhão** (Raw/Trusted) dentro do GCP:
 
 1. **Extração e Resiliência:** Script Python consumindo a API da CoinGecko (substituindo a CoinCap para contornar bloqueios de DNS em esteiras de CI/CD). Implementado mecanismo de *retry* e *backoff* para lidar com HTTP 429 (Rate Limit).
 2. **Transformação (Modelagem Dimensional):** Os dados aninhados foram separados em memória utilizando `pandas` em duas estruturas:
@@ -29,3 +56,41 @@ O pipeline foi desenhado utilizando conceitos de **Engenharia de Software (POO)*
    ```bash
    git clone [https://github.com/SEU-USUARIO/case-de-coincap.git](https://github.com/SEU-USUARIO/case-de-coincap.git)
    cd case-de-coincap
+
+```
+
+2. **Crie um ambiente virtual e instale as dependências:**
+```bash
+python -m venv venv
+source venv/bin/activate  # No Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+```
+
+
+3. **Configure as credenciais do GCP:**
+Salve o arquivo JSON da sua Service Account e exporte o caminho como variável de ambiente:
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS="/caminho/para/sua/chave.json"
+
+```
+
+
+4. **Configuração de Variáveis no `main.py`:**
+Altere as variáveis `GCP_PROJECT_ID` e `BQ_DATASET_ID` no final do arquivo `main.py` para apontar para o seu ambiente.
+5. **Execute o pipeline:**
+```bash
+python main.py
+
+```
+
+
+
+## 📊 Visualização de Dados (Dataviz)
+
+Os dados carregados e modelados na camada Trusted estão sendo consumidos pelo Looker Studio para análise de domínio e market cap das moedas extraídas.
+
+```
+
+*(Lembre-se de trocar `SEU-USUARIO` pelo seu usuário real do GitHub no bloco do clone).*
+
