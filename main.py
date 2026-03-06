@@ -84,6 +84,28 @@ class BigQueryLoader:
         self.client = bigquery.Client(project=project_id)
         self.dataset_id = dataset_id
 
+    def delete_today_data(self, table_name):
+        """
+        Garante a IDEMPOTÊNCIA: Deleta os dados do dia atual antes de inserir novos,
+        evitando duplicidade caso o script rode mais de uma vez no mesmo dia.
+        """
+        table_id = f"{self.client.project}.{self.dataset_id}.{table_name}"
+        
+        # Deleta os registros cuja data de extração é o dia de hoje (UTC)
+        query = f"""
+            DELETE FROM `{table_id}`
+            WHERE DATE(data_extracao) = CURRENT_DATE()
+        """
+        logging.info(f"Garantindo idempotência: Removendo extrações anteriores de hoje em {table_name}...")
+        
+        try:
+            query_job = self.client.query(query)
+            query_job.result() # Espera a query terminar
+            logging.info(f"Limpeza concluída. {query_job.num_dml_affected_rows} linhas antigas removidas.")
+        except Exception as e:
+            # Se a tabela não existir ainda (primeira execução), ele só avisa e segue
+            logging.warning(f"Limpeza ignorada (a tabela pode ser nova): {e}")
+
     def load_dataframe(self, df, table_name, write_disposition="WRITE_TRUNCATE"):
         """Carrega o DataFrame para o BigQuery"""
         table_id = f"{self.client.project}.{self.dataset_id}.{table_name}"
@@ -107,7 +129,7 @@ def main():
     
     try:
         # 1. Extração
-        api = CryptoAPI()
+        api = CryptoAPI() # Lembrando que trocamos pra CoinGecko
         raw_data = api.fetch_data(limit=100)
         
         # 2. Transformação
@@ -117,15 +139,20 @@ def main():
         # 3. Carga no BigQuery
         loader = BigQueryLoader(GCP_PROJECT_ID, BQ_DATASET_ID)
         
-        # Dimensão (Substitui tudo) e Fato (Faz Append histórico)
+        # Dimensão (Substitui tudo - SCD Type 1)
         loader.load_dataframe(df_dim, "dim_criptomoeda", write_disposition="WRITE_TRUNCATE")
+        
+        # O PULO DO GATO: Idempotência na Tabela Fato
+        loader.delete_today_data("fato_cotacao_cripto")
+        
+        # Fato (Faz o Append do snapshot atualizado do dia)
         loader.load_dataframe(df_fato, "fato_cotacao_cripto", write_disposition="WRITE_APPEND")
         
         logging.info("Pipeline finalizado com sucesso!")
         
     except Exception as e:
         logging.error(f"Pipeline falhou de forma crítica: {e}")
-        sys.exit(1) # Agora o GitHub Actions VAI mostrar vermelho se falhar!
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
