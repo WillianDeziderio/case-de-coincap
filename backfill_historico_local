@@ -1,0 +1,101 @@
+import time
+import pandas as pd
+import requests
+from google.cloud import bigquery
+
+# ==========================================
+# CONFIGURAÇÕES (Verifique seu Project ID)
+# ==========================================
+GCP_PROJECT_ID = 'case-de-specialist-gb'
+BQ_DATASET_ID = 'raw_crypto_market_data'
+DAYS_BACK = 180
+TOP_N_COINS = 50 # Dica: Deixei 50 para o script rodar em uns 5 minutos. Se colocar 100, pode demorar muito pelos rate limits.
+
+client = bigquery.Client(project=GCP_PROJECT_ID)
+
+print("🚀 Iniciando script de Backfill (Carga Histórica)...")
+
+# 1. Pegar o Top N moedas atuais
+print(f"Buscando as top {TOP_N_COINS} moedas no CoinGecko...")
+url_markets = "https://api.coingecko.com/api/v3/coins/markets"
+params_markets = {'vs_currency': 'usd', 'order': 'market_cap_desc', 'per_page': TOP_N_COINS, 'page': 1}
+response = requests.get(url_markets, params=params_markets)
+top_coins = response.json()
+
+# Preparar a Dimensão (Substituir a atual para garantir os 50)
+df_dim = pd.DataFrame(top_coins)[['id', 'symbol', 'name']].copy()
+df_dim['explorer'] = "https://www.coingecko.com/en/coins/" + df_dim['id']
+
+# 2. Iterar sobre cada moeda para buscar os 180 dias
+todas_fatos = []
+
+for idx, coin in enumerate(top_coins):
+    coin_id = coin['id']
+    print(f"[{idx+1}/{TOP_N_COINS}] Extraindo {DAYS_BACK} dias de {coin_id}...")
+    
+    url_history = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
+    params_history = {'vs_currency': 'usd', 'days': str(DAYS_BACK), 'interval': 'daily'}
+    
+    # Loop de proteção contra o HTTP 429 (Rate Limit)
+    sucesso = False
+    while not sucesso:
+        res = requests.get(url_history, params=params_history)
+        if res.status_code == 429:
+            print("   [!] Rate Limit da API atingido. Respirando por 15 segundos...")
+            time.sleep(15)
+        elif res.status_code == 200:
+            sucesso = True
+            data = res.json()
+        else:
+            print(f"   [X] Erro desconhecido para {coin_id}: {res.status_code}")
+            break
+            
+    if not sucesso:
+        continue
+        
+    try:
+            df_prices = pd.DataFrame(data['prices'], columns=['ts', 'priceUsd'])
+            df_caps = pd.DataFrame(data['market_caps'], columns=['ts', 'marketCapUsd'])
+            df_vols = pd.DataFrame(data['total_volumes'], columns=['ts', 'volumeUsd24Hr'])
+            
+            df_coin = df_prices.merge(df_caps, on='ts').merge(df_vols, on='ts')
+            
+            # AQUI ESTÁ A MÁGICA:
+            # 1. A data real da cotação (Valid Time)
+            df_coin['data_cotacao'] = pd.to_datetime(df_coin['ts'], unit='ms')
+            
+            # 2. A data da nossa extração (Transaction Time / Auditoria)
+            df_coin['data_extracao'] = pd.Timestamp.utcnow()
+            
+            df_coin['changePercent24Hr'] = df_coin['priceUsd'].pct_change() * 100
+            df_coin['id_criptomoeda'] = coin_id
+            
+            # Organizando as colunas com a nova estrutura
+            df_coin = df_coin[['id_criptomoeda', 'priceUsd', 'marketCapUsd', 'volumeUsd24Hr', 'changePercent24Hr', 'data_cotacao', 'data_extracao']]
+            
+            todas_fatos.append(df_coin)
+            
+    except Exception as e:
+            print(f"   [X] Erro ao processar o JSON de {coin_id}: {e}")
+        
+    # Dormir 5 segundos entre as moedas para ser um "bom cidadão" na API gratuita
+    time.sleep(5)
+
+# 3. Empacotar tudo e enviar para o BigQuery
+print("\n📦 Consolidando os DataFrames...")
+df_fato_historica = pd.concat(todas_fatos, ignore_index=True)
+
+# Remover a primeira linha de cada moeda (pois não tem dia anterior para calcular pct_change)
+df_fato_historica.dropna(subset=['changePercent24Hr'], inplace=True)
+
+print(f"Enviando Dimensão ({len(df_dim)} linhas) e Fato Histórica ({len(df_fato_historica)} linhas) para o BigQuery...")
+
+# Dimensão a gente trunca e cria de novo
+job_config_dim = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE")
+client.load_table_from_dataframe(df_dim, f"{GCP_PROJECT_ID}.{BQ_DATASET_ID}.dim_criptomoeda", job_config=job_config_dim).result()
+
+# Fato a gente faz APPEND para somar com o que já estava lá!
+job_config_fato = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE")
+client.load_table_from_dataframe(df_fato_historica, f"{GCP_PROJECT_ID}.{BQ_DATASET_ID}.fato_cotacao_cripto", job_config=job_config_fato).result()
+
+print("✅ Tudo pronto! O seu BigQuery agora tem um ano de história rica para o Dataviz!")
