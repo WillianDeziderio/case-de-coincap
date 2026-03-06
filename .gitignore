@@ -1,0 +1,12 @@
+# Ignorar chaves e credenciais
+*.json
+.env
+
+# Ignorar ambientes virtuais Python
+venv/
+env/
+__pycache__/
+
+# Ignorar arquivos do Mac/Windows
+.DS_Store
+Thumbs.db
